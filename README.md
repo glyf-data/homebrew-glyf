@@ -7,14 +7,14 @@ build tool for data pipelines.
 
 ```bash
 brew tap glyf-data/glyf
+brew trust --tap glyf-data/glyf
 brew install glyf
 ```
 
-Or in one line, without tapping first:
-
-```bash
-brew install glyf-data/glyf/glyf
-```
+Homebrew 6.0 refuses to load formulae from third-party taps until you trust
+them, so `brew trust` is required and not optional; without it `brew install`
+stops with "Refusing to load formula … from untrusted tap". The choice is
+recorded in `~/.homebrew/trust.json` and only needs doing once per machine.
 
 Then:
 
