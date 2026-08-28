@@ -36,11 +36,9 @@ jobs:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@1f8e202ffddf94def7f42f6fa3a482e821489f9c
 
-      # Tap from the checkout itself so the formula under test is this branch's,
-      # not main's. A plain copy breaks the setup-homebrew action's cleanup,
-      # which expects a tap Homebrew created.
-      - name: Tap this checkout
-        run: brew tap glyf-data/glyf "$GITHUB_WORKSPACE"
+      # setup-homebrew recognises a homebrew-* repository and symlinks this
+      # checkout in as the tap already, so the formula under test is this
+      # branch's. Tapping again here would only fight that.
 
       - name: brew style
         run: brew style glyf-data/glyf
