@@ -60,15 +60,13 @@ jobs:
           PY
 
       - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@1f8e202ffddf94def7f42f6fa3a482e821489f9c
 
-      - name: Install this checkout as the tap
-        run: |
-          set -eu
-          tap_dir="$(brew --repository)/Library/Taps/glyf-data/homebrew-glyf"
-          mkdir -p "$(dirname "$tap_dir")"
-          rm -rf "$tap_dir"
-          cp -R "$GITHUB_WORKSPACE" "$tap_dir"
+      # Tap from the checkout itself so the formula under test is this branch's,
+      # not main's. A plain copy breaks the setup-homebrew action's cleanup,
+      # which expects a tap Homebrew created.
+      - name: Tap this checkout
+        run: brew tap glyf-data/glyf "$GITHUB_WORKSPACE"
 
       - name: Verify the bumped formula
         run: |
