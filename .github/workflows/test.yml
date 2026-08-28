@@ -1,0 +1,66 @@
+name: test formula
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  schedule:
+    # Weekly, so a broken upstream wheel or a Homebrew change surfaces here
+    # rather than in someone's first brew install.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+  HOMEBREW_NO_ANALYTICS: 1
+  HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out tap
+        uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Install this checkout as the tap
+        run: |
+          set -eu
+          tap_dir="$(brew --repository)/Library/Taps/glyf-data/homebrew-glyf"
+          mkdir -p "$(dirname "$tap_dir")"
+          rm -rf "$tap_dir"
+          cp -R "$GITHUB_WORKSPACE" "$tap_dir"
+
+      - name: brew style
+        run: brew style glyf-data/glyf
+
+      - name: brew audit
+        run: brew audit --strict --formula glyf-data/glyf/glyf
+
+      - name: brew install
+        run: brew install --formula glyf-data/glyf/glyf
+
+      - name: brew test
+        run: brew test glyf-data/glyf/glyf
+
+      - name: Verify the installed command
+        run: |
+          set -eu
+          glyf --version
+          glyf --help >/dev/null
+          formula_version="$(brew info --json=v2 glyf-data/glyf/glyf |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["formulae"][0]["versions"]["stable"])')"
+          test "$(glyf --version)" = "glyf ${formula_version}"

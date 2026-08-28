@@ -1,0 +1,94 @@
+name: bump formula
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "glyf-core version to bump to, for example 0.4.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+  HOMEBREW_NO_ANALYTICS: 1
+  HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
+
+jobs:
+  bump:
+    # macOS so the bumped formula is installed and tested before the pull
+    # request is opened; a token-created PR does not trigger pull_request runs.
+    runs-on: macos-15
+
+    steps:
+      - name: Check out tap
+        uses: actions/checkout@v4
+
+      - name: Rewrite the formula
+        id: rewrite
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re, urllib.request
+
+          version = os.environ["VERSION"].lstrip("v")
+          url = f"https://pypi.org/pypi/glyf-core/{version}/json"
+          with urllib.request.urlopen(url) as response:
+              data = json.load(response)
+
+          sdist = next(u for u in data["urls"] if u["packagetype"] == "sdist")
+          formula = pathlib.Path("Formula/glyf.rb")
+          text = formula.read_text()
+          text = re.sub(r'^  url ".*"$', f'  url "{sdist["url"]}"', text, count=1, flags=re.M)
+          text = re.sub(
+              r'^  sha256 ".*"$',
+              f'  sha256 "{sdist["digests"]["sha256"]}"',
+              text,
+              count=1,
+              flags=re.M,
+          )
+          formula.write_text(text)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"version={version}\n")
+          print(f"bumped to {version}: {sdist['url']}")
+          PY
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Install this checkout as the tap
+        run: |
+          set -eu
+          tap_dir="$(brew --repository)/Library/Taps/glyf-data/homebrew-glyf"
+          mkdir -p "$(dirname "$tap_dir")"
+          rm -rf "$tap_dir"
+          cp -R "$GITHUB_WORKSPACE" "$tap_dir"
+
+      - name: Verify the bumped formula
+        run: |
+          set -eu
+          brew style glyf-data/glyf
+          brew audit --strict --formula glyf-data/glyf/glyf
+          brew install --formula glyf-data/glyf/glyf
+          brew test glyf-data/glyf/glyf
+          test "$(glyf --version)" = "glyf ${{ steps.rewrite.outputs.version }}"
+
+      - name: Open a pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: bump/glyf-${{ steps.rewrite.outputs.version }}
+          title: "glyf ${{ steps.rewrite.outputs.version }}"
+          body: |
+            Bumps the formula to glyf-core ${{ steps.rewrite.outputs.version }}.
+
+            `brew style`, `brew audit --strict`, `brew install` and `brew test`
+            all ran against this change in the workflow that opened it, so the
+            missing `pull_request` checks are expected.
+          commit-message: "glyf ${{ steps.rewrite.outputs.version }}"
+          delete-branch: true
