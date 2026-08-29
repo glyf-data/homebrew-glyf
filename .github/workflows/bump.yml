@@ -28,6 +28,18 @@ jobs:
       - name: Check out tap
         uses: actions/checkout@v4
 
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@1f8e202ffddf94def7f42f6fa3a482e821489f9c
+
+      # setup-homebrew recognises a homebrew-* repository and symlinks this
+      # checkout in as the tap already, so the formula under test is this
+      # branch's. Tapping again here would only fight that.
+      #
+      # It also fetches the tap, which resets the checkout to the remote and
+      # would discard an edit made before this point. The rewrite therefore
+      # has to come after it: on 2026-08-30 a 0.4.0 bump rewrote the formula
+      # first, had it reset back to 0.3.0 here, and installed the old version.
+
       - name: Rewrite the formula
         id: rewrite
         env:
@@ -41,30 +53,43 @@ jobs:
           with urllib.request.urlopen(url) as response:
               data = json.load(response)
 
-          sdist = next(u for u in data["urls"] if u["packagetype"] == "sdist")
+          # PyPI can serve a version's metadata before every file of that
+          # upload is listed, so a missing sdist means "try again shortly",
+          # not "this release has no sdist".
+          sdist = next(
+              (u for u in data["urls"] if u["packagetype"] == "sdist"), None
+          )
+          if sdist is None:
+              raise SystemExit(
+                  f"glyf-core {version} lists no sdist yet; retry in a few minutes"
+              )
+
           formula = pathlib.Path("Formula/glyf.rb")
           text = formula.read_text()
-          text = re.sub(r'^  url ".*"$', f'  url "{sdist["url"]}"', text, count=1, flags=re.M)
-          text = re.sub(
-              r'^  sha256 ".*"$',
-              f'  sha256 "{sdist["digests"]["sha256"]}"',
+          text, urls = re.subn(
+              r'^  url ".*"$',
+              lambda _: f'  url "{sdist["url"]}"',
               text,
               count=1,
               flags=re.M,
           )
+          text, shas = re.subn(
+              r'^  sha256 ".*"$',
+              lambda _: f'  sha256 "{sdist["digests"]["sha256"]}"',
+              text,
+              count=1,
+              flags=re.M,
+          )
+          if (urls, shas) != (1, 1):
+              raise SystemExit(
+                  f"rewrote {urls} url and {shas} sha256 lines, expected 1 each"
+              )
           formula.write_text(text)
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               out.write(f"version={version}\n")
           print(f"bumped to {version}: {sdist['url']}")
           PY
-
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@1f8e202ffddf94def7f42f6fa3a482e821489f9c
-
-      # setup-homebrew recognises a homebrew-* repository and symlinks this
-      # checkout in as the tap already, so the formula under test is this
-      # branch's. Tapping again here would only fight that.
 
       - name: Verify the bumped formula
         run: |
