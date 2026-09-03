@@ -3,13 +3,14 @@ class Glyf < Formula
 
   desc "Visualization build tool for data pipelines: dbt artifacts to static dashboards"
   homepage "https://github.com/glyf-data/glyf"
-  url "https://files.pythonhosted.org/packages/05/83/7d1fa860bbadf120e5c951afff404be52efd03975eeb91b0c8d0dff8c164/glyf_core-0.4.0.tar.gz"
-  sha256 "0151ec693cbe5ea37052ce445750bfadd31b4230f2a89304124e535e78b97f5b"
+  url "https://files.pythonhosted.org/packages/01/76/31f66ca22b294f7ba2bb00d314ce74c6c7fa6524241d56de8d715abc1795/glyf_core-0.5.0.tar.gz"
+  sha256 "5f56eeaac99a0d573e18d8614db1ff0db10f8ca14c2077fc646284c87397238f"
   license "Apache-2.0"
 
   depends_on "python@3.13"
 
-  # glyf-core depends on pyarrow, polars, duckdb, pandas and vl-convert-python.
+  # glyf-core depends on pyarrow, duckdb, vl-convert-python and the ADBC
+  # driver manager.
   # Building those from source, as virtualenv_install_with_resources would,
   # needs Arrow C++, a Rust toolchain and a long compile; upstream publishes
   # wheels for every platform this formula supports, so install those instead.
