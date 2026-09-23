@@ -3,8 +3,8 @@ class Glyf < Formula
 
   desc "Visualization build tool for data pipelines: dbt artifacts to static dashboards"
   homepage "https://github.com/glyf-data/glyf"
-  url "https://files.pythonhosted.org/packages/a4/5d/7c7a0bd697eed317ead0538580224460a321cd8a711c3725e33598bc87b4/glyf_core-0.10.0.tar.gz"
-  sha256 "32391ae0aa84feee65e68611683c0a2c4a670a93ac2a263946b99fcfa6f05c47"
+  url "https://files.pythonhosted.org/packages/50/83/9a77ec7d257bf790be9398ebecb9fa36029b5e462fa0b428e5e6a038ca59/glyf_core-0.10.1.tar.gz"
+  sha256 "6a463a87851e3c574f5808c8715a4512b6304b79d11d8478f8d1c14b2f645559"
   license "Apache-2.0"
 
   depends_on "python@3.13"
